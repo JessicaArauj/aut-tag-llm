@@ -1,0 +1,205 @@
+---
+title: "Binomial Test"
+output: html_notebook
+author: "Jessica Teixeira Araujo"
+---
+
+## Goal
+
+Run a reproducible binomial test on categorical data, summarizing the dataset,
+computing the statistical test, and generating visual insights.
+
+## 1. Setup
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(broom)
+library(glue)
+
+theme_set(
+  theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank())
+)
+```
+
+Users can customize the parameters below. If `data_path` does not exist, a
+synthetic dataset is generated for demonstration purposes.
+
+```{r parameters}
+data_path <- "inputs/sample_binomial.csv"
+category_column <- "outcome"
+success_label <- "Success"
+p_null <- 0.3
+alpha <- 0.05
+confidence_level <- 1 - alpha
+alternative_hypothesis <- "greater" # c("two.sided", "less", "greater")
+```
+
+## 2. Hypotheses
+
+```{r hypotheses, echo=FALSE}
+alt_symbol <- dplyr::case_when(
+  alternative_hypothesis == "two.sided" ~ "≠",
+  alternative_hypothesis == "less" ~ "<",
+  TRUE ~ ">"
+)
+
+hypotheses <- glue(
+  "Null hypothesis (H0): p = {p_null}\n",
+  "Alternative hypothesis (H1): p {alt_symbol} {p_null}"
+)
+
+cat(hypotheses)
+```
+
+## 3. Load Data
+
+```{r load-data}
+if (file.exists(data_path)) {
+  raw_data <- readr::read_csv(data_path, show_col_types = FALSE)
+  data_source <- glue("Loaded dataset: {data_path}")
+} else {
+  set.seed(42)
+  raw_data <- tibble(
+    id = seq_len(30),
+    outcome = sample(
+      c("Success", "Failure"),
+      size = 30,
+      replace = TRUE,
+      prob = c(0.4, 0.6)
+    )
+  )
+  data_source <- glue(
+    "File not found at '{data_path}'. Synthetic data generated."
+  )
+}
+
+if (!category_column %in% names(raw_data)) {
+  stop(
+    glue(
+      "Column '{category_column}' not found. Update ",
+      "`category_column` with a valid name."
+    )
+  )
+}
+
+message(data_source)
+glimpse(raw_data)
+```
+
+## 4. Summary Tables
+
+```{r summary}
+summary_table <- raw_data |>
+  count(.data[[category_column]], name = "n") |>
+  mutate(prop = n / sum(n)) |>
+  arrange(desc(n))
+
+knitr::kable(
+  summary_table,
+  digits = 3,
+  col.names = c("Category", "Frequency", "Proportion")
+)
+```
+
+```{r highlight-success}
+total_records <- nrow(raw_data)
+success_count <- summary_table |>
+  filter(.data[[category_column]] == success_label) |>
+  pull(n)
+
+if (length(success_count) == 0) {
+  stop(glue(
+    "Success label '{success_label}' not found in column ",
+    "'{category_column}'."
+  ))
+}
+
+glue(
+  "Total records: {total_records}\n",
+  "Observed successes ('{success_label}'): {success_count}"
+) |>
+  cat()
+```
+
+## 5. Binomial Test
+
+```{r binom-test}
+test_result <- binom.test(
+  x = success_count,
+  n = total_records,
+  p = p_null,
+  alternative = alternative_hypothesis,
+  conf.level = confidence_level
+)
+
+tidy_result <- tidy(test_result)
+tidy_result
+```
+
+### Decision Rule
+
+```{r decision}
+if (tidy_result$p.value > alpha) {
+  glue(
+    "p-value = {round(tidy_result$p.value, 4)} > alpha = {alpha}. ",
+    "Fail to reject H0 at {confidence_level * 100}% confidence."
+  ) |>
+    cat()
+} else {
+  glue(
+    "p-value = {round(tidy_result$p.value, 4)} ≤ alpha = {alpha}. ",
+    "Reject H0 at {confidence_level * 100}% confidence."
+  ) |>
+    cat()
+}
+```
+
+## 6. Visualizations
+
+```{r plot-counts, fig.height=4, fig.width=6}
+ggplot(summary_table, aes(x = fct_reorder(.data[[category_column]], n), y = n)) +
+  geom_col(fill = "#3778C2") +
+  coord_flip() +
+  labs(
+    x = "Category",
+    y = "Frequency",
+    title = "Observed category distribution"
+  )
+```
+
+```{r plot-ci, fig.height=4, fig.width=6}
+ci_df <- tidy_result |>
+  mutate(
+    success_rate = estimate,
+    lower = conf.low,
+    upper = conf.high
+  )
+
+ggplot(ci_df, aes(x = "", y = success_rate)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1, color = "#A23B72") +
+  geom_point(size = 3, color = "#A23B72") +
+  geom_hline(yintercept = p_null, linetype = "dashed", color = "gray40") +
+  annotate(
+    "text",
+    x = 1.1,
+    y = p_null,
+    label = glue("Null proportion = {p_null}"),
+    hjust = 0,
+    size = 3
+  ) +
+  labs(
+    x = NULL,
+    y = "Success proportion",
+    title = "Point estimate and confidence interval"
+  ) +
+  ylim(0, 1) +
+  theme(axis.text.x = element_blank())
+```
+
+## 7. Next Steps
+
+- Adjust input parameters (`data_path`, `success_label`, `p_null`,
+  `alternative_hypothesis`) for the specific analytical context.
+- Export tables/plots or integrate them into the broader reporting pipeline as
+  needed.
