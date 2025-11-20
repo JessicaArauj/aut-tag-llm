@@ -1,12 +1,12 @@
-%% OmniTag Universal architecture diagram (Mermaid)
+%% aut-tag-llm architecture diagram (Mermaid)
 flowchart LR
-    subgraph Env["Environment and Configuration"]
+    subgraph Env["Environment & Configuration"]
         ENV[.env.local / Environment variables<br/>HUGGINGFACE_API_KEY, *]
         CFG[config.py<br/>Centralizes settings]
         ENV --> CFG
     end
 
-    subgraph Ingestion["Data Ingestion and ETL"]
+    subgraph Ingestion["Data Ingestion & ETL"]
         INPUT[[Excel spreadsheet in inputs/]]
         IO[io_utils<br/>ensure_directories + resolve_input_file]
         PREP[preprocessing_utils<br/>load_dataset + clean text + ensure NLTK]
@@ -17,61 +17,67 @@ flowchart LR
     CFG --> ORCH
     PREP --> ORCH
 
-    DECIDE{MODEL Backend}
+    DECIDE{MODEL_BACKEND}
     ORCH --> DECIDE
 
-    subgraph HFBackend["HF API Backend Default"]
+    subgraph HFBackend["HF API backend (default)"]
         HF[hf_api_utils<br/>gradio_client]
         HFF[Hugging Face Space / Inference Endpoint]
         HF --> HFF
     end
-    DECIDE -->|HF| HF
+    DECIDE -->|hf| HF
 
-    subgraph LLMBackend["LLM Backend Cross-Platform"]
-        LLM[llm_utils<br/>OpenAI, Bedrock, Azure, Vertex, Databricks]
-        LLMAPI[Proxy/router<br/>HF, AWS, Azure, GCP,  Databricks, Litellm]
+    subgraph LLMBackend["LLM backend"]
+        LLM[llm_utils<br/>Cross-Plataform]
+        LLMAPI[Hugging Face Inference / Custom LLM API]
         LLM --> LLMAPI
     end
-    DECIDE -->|LLM| LLM
+    DECIDE -->|llm| LLM
 
-    subgraph BERTBackend["Local BERT Fine-Tuning"]
+    subgraph BERTBackend["Local BERT fine-tuning"]
         BERTTRAIN[modeling_utils<br/>train_and_evaluate_bert]
         BERTINFER[apply_bert_model]
         BERTTRAIN --> BERTINFER
     end
-    DECIDE -->|BERT| BERTTRAIN
+    DECIDE -->|bert| BERTTRAIN
 
-    subgraph ClassicBackend["Classic ML Backend"]
+    subgraph ClassicBackend["Classic ML backend"]
         CLASSIC[modeling_utils<br/>TF-IDF/BoW + Logistic Regression]
     end
-    DECIDE -->|ML| CLASSIC
+    DECIDE -->|ml| CLASSIC
 
-    subgraph LocalBackend["Local Transformers Backend"]
+    subgraph LocalBackend["Local transformers backend"]
         LOCAL[local_model_utils<br/>transformers.pipeline]
     end
-    DECIDE -->|LOCAL| LOCAL
+    DECIDE -->|local| LOCAL
 
-    HF & LLM & BERTINFER & CLASSIC & LOCAL --> CLASSIFIED["Classified Dataframe"]
+    HF & LLM & BERTINFER & CLASSIC & LOCAL --> CLASSIFIED[(Classified dataframe)]
 
-    subgraph PostProcessing["Post-Processing and Delivery"]
+    subgraph PostProcessing["Post-processing & Delivery"]
         REPORT[reporting_utils<br/>save_classified_data + metrics JSON]
         VIS[visualization_utils<br/>word clouds + charts]
         EMAIL[email_utils<br/>send_result_email]
+        SNAPSHOT[save_dashboard_snapshot.py<br/>dark-mode HTML]
     end
     CLASSIFIED --> REPORT
     CLASSIFIED --> VIS
     CLASSIFIED --> EMAIL
 
     REPORT --> EXCEL[[output/tagged_file.xlsx]]
-    REPORT --> JSON[[outputs/nlp_metrics.json]]
+    REPORT --> JSON[[inputs/nlp_metrics.json]]
     VIS --> WORDCLOUDS[[output/nlp_visualizations/*]]
-    EMAIL --> STAKEHOLDERS[Stakeholder Notification]
+    EMAIL --> STAKEHOLDERS[Stakeholder notification]
+    EXCEL --> SNAPSHOT
+    JSON --> SNAPSHOT
+    SNAPSHOT --> HTML[[output/dashboard_snapshot.html]]
 
-    subgraph QA["Quality Automation and Observability"]
-        AUT_TESTS[robots/aut_tests.sh<br/>bootstrap venv + pytest + dashboard]
-        PYTEST[tests/* + pytest.ini]
-        DASHBOARD[package/python/test_metrics_dashboard.py<br/>Streamlit metrics]
-        AUT_TESTS --> PYTEST --> ORCH
-        AUT_TESTS --> DASHBOARD
+    subgraph QA["Quality Automation & Observability"]
+        AUT_TESTS[robots/aut_tests.sh<br/>venv + pytest + snapshot + Streamlit]
+        PYTEST[pytest --json-report<br/>tests/*]
+        TESTJSON[[output/test_results.json]]
+        DASHBOARD[dashboards/test_metrics_dashboard.py<br/>Streamlit metrics]
+        AUT_TESTS --> PYTEST --> TESTJSON
+        AUT_TESTS --> SNAPSHOT
+        TESTJSON --> DASHBOARD
         DASHBOARD --> JSON
     end

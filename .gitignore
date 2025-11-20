@@ -31,11 +31,8 @@ Thumbs.db
 # Data
 script/python/__pycache__/
 script/python/*.pyc
-package/python/__pycache__/
-package/python/*.pyc
 data/
 stdout
-test_results.json
+input/
 backup/
-inputs/
-output/chuncks/xlsx
+

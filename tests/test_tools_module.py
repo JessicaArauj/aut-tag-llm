@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from package.python import tools
+from script.python import tools
 
 
 def test_load_dataset_parses_csv(tmp_path):

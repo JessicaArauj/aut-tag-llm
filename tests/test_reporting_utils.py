@@ -1,6 +1,6 @@
 import json
 
-from package.python import reporting_utils as reporting
+from script.python import reporting_utils as reporting
 
 
 def test_save_metrics_summary_records_local_backend(tmp_path, monkeypatch):

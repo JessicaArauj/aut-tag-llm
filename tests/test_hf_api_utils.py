@@ -1,6 +1,6 @@
 import pytest
 
-from package.python import hf_api_utils as hf
+from script.python import hf_api_utils as hf
 
 
 def test_normalize_label_maps_variants():

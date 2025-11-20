@@ -1,4 +1,4 @@
-from package.python import llm_utils as llm
+from script.python import llm_utils as llm
 
 
 def test_normalize_label_defaults_to_avaliar():

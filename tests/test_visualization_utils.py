@@ -6,7 +6,7 @@ pytest.importorskip('wordcloud')
 
 import pandas as pd
 
-from package.python import visualization_utils as viz
+from script.python import visualization_utils as viz
 
 
 class _DummyCloud:
